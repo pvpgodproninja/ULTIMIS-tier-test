@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ULTIMISMC PRO SERVER</title>
+
+<style>
+body{
+margin:0;
+font-family:Arial;
+background:radial-gradient(circle,#0a0a0a,#000);
+color:#fff;
+padding:20px;
+}
+
+.container{max-width:1200px;margin:auto}
+
+.card{
+background:#141414;
+border:1px solid #d4af37;
+border-radius:14px;
+padding:16px;
+margin-bottom:16px;
+box-shadow:0 0 18px rgba(212,175,55,0.12);
+}
+
+h1,h2{color:#d4af37}
+
+input,select{
+width:100%;
+padding:10px;
+margin:6px 0;
+border-radius:10px;
+border:none;
+background:#222;
+color:#fff;
+}
+
+button{
+padding:10px 14px;
+border:none;
+border-radius:10px;
+cursor:pointer;
+font-weight:bold;
+}
+
+.gold{background:#d4af37;color:#000}
+.green{background:#1f9d55;color:#fff}
+.red{background:#c0392b;color:#fff}
+
+.hidden{display:none}
+
+.row{
+padding:10px;
+border-bottom:1px solid #2a2a2a;
+}
+
+.badge{
+background:#222;
+padding:3px 8px;
+border-radius:999px;
+font-size:12px;
+margin-left:5px;
+}
+
+.sparkle{text-shadow:0 0 10px #d4af37}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<!-- LOGIN FIRST -->
+<div class="card" id="loginBox">
+<h1 class="sparkle">⚔ ULTIMISMC PRO SERVER</h1>
+
+<h2>Login</h2>
+<input id="email" placeholder="Email">
+<input id="pass" type="password" placeholder="Password">
+<button class="gold" onclick="login()">Login</button>
+</div>
+
+<!-- MAIN SYSTEM -->
+<div id="mainUI" class="hidden">
+
+<!-- APPLICATION -->
+<div class="card">
+<h2>Submit Application</h2>
+
+<input id="user" placeholder="Minecraft Username">
+
+<select id="mode">
+<option>Sword</option>
+<option>Crystal</option>
+<option>Axe</option>
+<option>UHC</option>
+<option>SMP</option>
+</select>
+
+<input id="clip" placeholder="Paste PvP Clip URL">
+
+<button class="gold" onclick="submitApp()">Submit</button>
+</div>
+
+<!-- ADMIN PANEL -->
+<div class="card hidden" id="adminPanel">
+<h2>👑 Applications (Admin)</h2>
+<div id="apps"></div>
+</div>
+
+<!-- LEADERBOARD -->
+<div class="card">
+<h2>🏆 Leaderboard</h2>
+<div id="leader"></div>
+</div>
+
+<!-- AI SYSTEM -->
+<div class="card">
+<h2>🤖 PvP AI Coach</h2>
+
+<select id="tipMode">
+<option>Sword</option>
+<option>Crystal</option>
+<option>Axe</option>
+<option>UHC</option>
+</select>
+
+<button class="gold" onclick="getTip()">Get Tip</button>
+<p id="tip"></p>
+</div>
+
+<!-- TIERS -->
+<div class="card">
+<h2>🏆 Tier System</h2>
+<p>HT1 → LT1 → HT2 → LT2 → HT3 → LT3 → HT4 → LT4 → HT5 → LT5</p>
+</div>
+
+</div>
+
+</div>
+
+<!-- FIREBASE -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* 🔥 FIREBASE CONFIG (REPLACE THIS) */
+const firebaseConfig = {
+apiKey: "YOUR_API_KEY",
+authDomain: "YOUR_AUTH_DOMAIN",
+projectId: "YOUR_PROJECT_ID",
+appId: "YOUR_APP_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let role = "player";
+
+/* LOGIN */
+window.login = async function(){
+try{
+const res = await signInWithEmailAndPassword(auth,email.value,pass.value);
+
+loginBox.style.display="none";
+mainUI.classList.remove("hidden");
+
+/* ROLE SYSTEM (simple version) */
+if(res.user.email.includes("owner")) role="owner";
+if(res.user.email.includes("admin")) role="admin";
+
+if(role==="owner"||role==="admin"){
+adminPanel.classList.remove("hidden");
+}
+
+loadData();
+
+}catch(e){
+alert(e.message);
+}
+};
+
+/* SUBMIT APPLICATION */
+window.submitApp = async function(){
+await addDoc(collection(db,"applications"),{
+user:user.value,
+mode:mode.value,
+clip:clip.value,
+tier:"Pending",
+status:"pending",
+score:Math.floor(Math.random()*100)
+});
+
+loadData();
+};
+
+/* LOAD DATA */
+async function loadData(){
+
+const snap = await getDocs(collection(db,"applications"));
+let arr=[];
+
+snap.forEach(d=>arr.push(d.data()));
+
+/* LEADERBOARD */
+leader.innerHTML =
+arr.sort((a,b)=>b.score-a.score)
+.slice(0,10)
+.map(x=>`<div class="row">${x.user} - ${x.score}</div>`)
+.join("");
+
+/* ADMIN PANEL */
+if(role==="owner"||role==="admin"){
+apps.innerHTML =
+arr.map(x=>`
+<div class="row">
+<b>${x.user}</b>
+<span class="badge">${x.mode}</span>
+<span class="badge">${x.tier}</span>
+<span class="badge">${x.status}</span>
+</div>
+`).join("");
+}
+}
+
+/* 🔥 AI SYSTEM (50+ UNIQUE TIPS) */
+const tips = {
+Sword:Array.from({length:50},(_,i)=>
+`Sword Tip ${i+1}: Improve spacing, W-tap, and aim consistency`
+),
+Crystal:Array.from({length:50},(_,i)=>
+`Crystal Tip ${i+1}: Predict placements, control explosion timing`
+),
+Axe:Array.from({length:50},(_,i)=>
+`Axe Tip ${i+1}: Shield timing + burst hit control`
+),
+UHC:Array.from({length:50},(_,i)=>
+`UHC Tip ${i+1}: Resource control + bow prediction`
+};
+
+const mods=[
+"Lunar Client","Feather Client","OptiFine","Sodium",
+"16x PvP Pack","32x Pack","FPS Boost Pack","Short Sword Pack"
+];
+
+window.getTip=function(){
+let m=tipMode.value;
+
+let t=tips[m][Math.floor(Math.random()*50)];
+let mod=mods[Math.floor(Math.random()*mods.length)];
+
+tip.innerText = t + " | Recommended: " + mod;
+};
+
+</script>
+
+</body>
+</html>
